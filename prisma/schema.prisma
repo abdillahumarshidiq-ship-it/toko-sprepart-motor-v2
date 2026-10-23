@@ -1,0 +1,131 @@
+// Sijambul Merah - Toko Sparepart Motor
+// Katalog Online (tanpa checkout) - transaksi via WhatsApp
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model MotorType {
+  id        String   @id @default(cuid())
+  brand     String   // Honda, Yamaha, Suzuki
+  model     String   // Beat FI, Vario 125, etc.
+  yearFrom  Int?
+  yearTo    Int?
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  compatibilities ProductCompatibility[]
+}
+
+model Category {
+  id        String   @id @default(cuid())
+  name      String   // Oli, Ban, Rem, CVT, Aki, etc.
+  slug      String   @unique
+  icon      String?  // Lucide icon name
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Brand {
+  id        String   @id @default(cuid())
+  name      String   // Honda Genuine, Aspira, Federal, etc.
+  slug      String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  products Product[]
+}
+
+model Product {
+  id            String   @id @default(cuid())
+  sku           String   @unique // Format: KATEGORI-BRAND-MOTOR-URUT, e.g. REM-ASP-BEAT-001
+  slug          String   @unique
+  name          String
+  categoryId    String
+  brandId       String
+  tipe          String   // ORI / OEM / KW1
+  hargaJual     Int      // in Rupiah
+  jasaPasang    Int?     // in Rupiah, optional
+  stokStatus    String   // READY / MENIPIS / KOSONG
+  fotoUrl       String?
+  barcodeValue  String   // = SKU, Code128
+  deskripsi     String?
+  isTerlaris    Boolean  @default(false)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  category       Category @relation(fields: [categoryId], references: [id])
+  brand          Brand    @relation(fields: [brandId], references: [id])
+  compatibilities ProductCompatibility[]
+
+  @@index([categoryId])
+  @@index([brandId])
+  @@index([stokStatus])
+}
+
+model ProductCompatibility {
+  id          String   @id @default(cuid())
+  productId   String
+  motorTypeId String
+  createdAt   DateTime @default(now())
+
+  product   Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  motorType MotorType @relation(fields: [motorTypeId], references: [id], onDelete: Cascade)
+
+  @@unique([productId, motorTypeId])
+  @@index([motorTypeId])
+}
+
+model AdminUser {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  name      String
+  role      String   // owner / staff
+  createdAt DateTime @default(now())
+}
+
+// ===== Booking Bengkel =====
+// Pelanggan booking jadwal service tanpa login admin.
+// Status: PENDING (baru) -> CONFIRMED (admin konfirmasi) -> DONE (selesai) / CANCELLED
+model Booking {
+  id           String    @id @default(cuid())
+  namaPelanggan String
+  noWhatsapp   String
+  motorBrand   String    // Honda / Yamaha / Suzuki / Other
+  motorModel   String    // Beat FI, Vario 125, NMAX, dll
+  platNomor    String?
+  layanan      String    // service_umum / ganti_oli / ganti_ban / tune_up / rem / cvt / listrik / lainnya
+  keluhan      String?
+  tanggal      DateTime  // jadwal booking
+  jam          String    // "10:00"
+  status       String    @default("PENDING") // PENDING / CONFIRMED / DONE / CANCELLED
+  catatanAdmin String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  @@index([status])
+  @@index([tanggal])
+}
+
+// ===== Layanan Bengkel =====
+// Master data layanan bengkel yang tersedia untuk booking
+model ServiceItem {
+  id          String   @id @default(cuid())
+  name        String   // "Ganti Oli Mesin", "Tune Up Lengkap"
+  slug        String   @unique
+  description String?
+  duration    Int      // estimasi menit
+  priceFrom   Int      // harga mulai (Rp)
+  icon        String?  // lucide icon name
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+}
+
